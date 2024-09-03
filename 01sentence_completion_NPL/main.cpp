@@ -2,7 +2,6 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
-#include <iterator>
 #include <map>
 #include <random>
 #include <sstream>
@@ -98,7 +97,8 @@ build_ngram_model(const std::string &text, int n) {
 std::string generate_sentence(
     const std::map<std::vector<std::string>, std::vector<std::string>>
         &ngram_model,
-    const std::vector<std::string> &start_words, int length, int n) {
+    const std::vector<std::string> &start_words, int length) {
+
   std::string sentence;
   std::vector<std::string> current_history = start_words;
 
@@ -117,18 +117,17 @@ std::string generate_sentence(
     std::uniform_int_distribution<> dis(0, next_words.size() - 1);
     std::string next_word = next_words[dis(gen)];
 
-    if (current_history[0].find("<fullstop>") != std::string::npos)
-      break;
-    if (current_history[0].find("<question>") != std::string::npos)
-      break;
+    sentence += next_word + " ";
 
-    sentence += current_history[0] + " ";
     current_history.erase(current_history.begin());
     current_history.push_back(next_word);
-  }
 
-  // Add the last word
-  sentence += current_history[0] + " ";
+    // Stop if punctuation is found
+    if (next_word.find("<fullstop>") != std::string::npos ||
+        next_word.find("<question>") != std::string::npos) {
+      break;
+    }
+  }
 
   return sentence;
 }
@@ -148,6 +147,7 @@ std::string fix_punctuation(const std::string &input) {
 
 int main() {
   std::string folderPath = "../data/sherlock/"; // Replace with your folder path
+  int ngram = 2;
 
   // reading all the content from all the files
   std::string text;
@@ -158,7 +158,7 @@ int main() {
 
   // training of the model
   std::map<std::vector<std::string>, std::vector<std::string>> model;
-  model = build_ngram_model(text, 2);
+  model = build_ngram_model(text, ngram);
 
   // input the start sentence
   std::cout << "please enter the start string:\n";
@@ -176,18 +176,25 @@ int main() {
   while (ss >> word) {
     start_words.push_back(word);
   }
+  if (start_words.size() < 2 * (ngram - 1))
+    std::cout << "please provide a longer sentence";
+  else {
+    while (start_words.size() > 2 * (ngram - 1)) {
+      start_words.erase(start_words.begin());
+    }
+  }
 
   for (auto i : start_words)
     std::cout << i << ',';
   std::cout << std::endl;
 
-  std::string sentence = generate_sentence(model, start_words, 40, 3);
+  std::string sentence = generate_sentence(model, start_words, 40);
 
   // fix the sentence for punctuation
   sentence = fix_punctuation(sentence);
 
   // Output the combined text
-  std::cout << sentence << std::endl;
+  std::cout << input << ' ' << sentence << std::endl;
 
   return 0;
 }
